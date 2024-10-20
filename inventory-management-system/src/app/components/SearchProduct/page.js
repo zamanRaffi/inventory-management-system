@@ -2,19 +2,20 @@
 
 import { useState } from 'react';
 import axios from 'axios';
-
+import { useProducts } from '../../../ProductContext';
 
 const SearchProduct = () => {
 
+  const { products, setProducts } = useProducts();
   const[query,setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingaction, setLoadingaction] = useState(false);
+  const [loadingProduct, setLoadingProduct] = useState(null);
   const [dropdown, setdropdown] = useState([]);
 
      const onDropdown = async (e) =>{
       let value = e.target.value;
       setQuery(value);
-      if(value.length > 3){
+      if(value.length > 0){
          setLoading(true);
          setdropdown([]);
       const response = await axios.get('/api/search?query=' + query); 
@@ -27,61 +28,54 @@ const SearchProduct = () => {
 
 
      const buttonAction = async (action, productName, initialQuantity) => {
+      setLoadingProduct(productName);
       try {
-        // Find the index of the product (assuming products is an array in the state)
-        let index = products.findIndex((item) => item.productName === productName);
-        let newProducts = JSON.parse(JSON.stringify(products));
-        if(action == "plus"){
-
-          newProducts[index].quantity = parseInt(initialQuantity) + 1;
-
-        }else{
-
-          newProducts[index].quantity = parseInt(initialQuantity) - 1;
-        }
-       
-        setProducts(newProducts)
-       
-
-
-        let indexdrop = dropdown.findIndex((item) => item.productName === productName);
-        let newDropdown = JSON.parse(JSON.stringify(dropdown));
-        if(action == "plus"){
-
-          newDropdown[indexdrop].quantity = parseInt(initialQuantity) + 1;
-
-        }else{
-
-          newDropdown[indexdrop].quantity = parseInt(initialQuantity) - 1;
-        }
-       
-        setdropdown(newDropdown)
+        // Find the product index in both 'products' and 'dropdown'
+        const productIndex = products.findIndex((item) => item.productName === productName);
+        const dropdownIndex = dropdown.findIndex((item) => item.productName === productName);
     
-        // Set loading state to true before making the request
-        setLoadingaction(true);
+        if (productIndex === -1 || dropdownIndex === -1) {
+          console.error(`Product "${productName}" not found.`);
+          return; // Prevent further execution if product not found
+        }
+    
+        // Clone the arrays to avoid direct state mutation
+        const updatedProducts = [...products];
+        const updatedDropdown = [...dropdown];
+    
+        // Update the product quantities
+        const quantityChange = action === "plus" ? 1 : -1;
+        updatedProducts[productIndex].quantity = parseInt(initialQuantity) + quantityChange;
+        updatedDropdown[dropdownIndex].quantity = parseInt(initialQuantity) + quantityChange;
+    
+        // Update the states
+        setProducts(updatedProducts);
+        setdropdown(updatedDropdown);
+    
+        // Set loading state to true before the API call
+        setLoadingProduct(true);
     
         // Make the API call
-        const response = await axios.post('/api/action', {
-          action,
-          productName,
-          initialQuantity,
-        }, {
-          headers: { 'Content-Type': 'application/json' },
-        });
+        const response = await axios.post(
+          "/api/action",
+          { action, productName, initialQuantity },
+          { headers: { "Content-Type": "application/json" } }
+        );
     
-        console.log("Response:", response.data); // Handle the response as needed
+        console.log("Response:", response.data); // Handle the API response as needed
       } catch (error) {
         console.error("Error during API call:", error);
       } finally {
-        // Set loading state back to false after the request completes
-        setLoadingaction(false);
+        // Reset loading state after the request completes
+        setLoadingProduct(null)
       }
     };
+    
     
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-6">
-      <h1 className="text-5xl sm:text-4xl font-bold mb-6 text-center">Search Product</h1>
+      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-6 text-center">Search Product</h1>
 
       <form
         className="bg-black w-[90vh] backdrop-blur-md py-2 rounded-lg"
@@ -92,7 +86,6 @@ const SearchProduct = () => {
             type="text"
             placeholder="Search for a product..."
            className="border rounded-lg w-[95%] p-2"
-            onBlur={()=> {setdropdown([])}}
             onChange={onDropdown}
           />
 
@@ -115,21 +108,21 @@ const SearchProduct = () => {
   height="65"
 >
   <radialGradient id="a12" cx=".66" fx=".66" cy=".3125" fy=".3125" gradientTransform="scale(1.5)">
-    <stop offset="0" stop-color="#000000"></stop>
-    <stop offset=".3" stop-color="#000000" stop-opacity=".9"></stop>
-    <stop offset=".6" stop-color="#000000" stop-opacity=".6"></stop>
-    <stop offset=".8" stop-color="#000000" stop-opacity=".3"></stop>
-    <stop offset="1" stop-color="#000000" stop-opacity="0"></stop>
+    <stop offset="0" stopColor="#000000"></stop>
+    <stop offset=".3" stopColor="#000000" stopOpacity=".9"></stop>
+    <stop offset=".6" stopColor="#000000" stopOpacity=".6"></stop>
+    <stop offset=".8" stopColor="#000000" stopOpacity=".3"></stop>
+    <stop offset="1" stopColor="#000000" stopOpacity="0"></stop>
   </radialGradient>
 
   <circle 
-    transform-origin="center" 
+    transformOrigin="center" 
     fill="none" 
     stroke="url(#a12)" 
-    stroke-width="20" 
-    stroke-linecap="round" 
-    stroke-dasharray="200 1000" 
-    stroke-dashoffset="0" 
+    strokeWidth="20" 
+    strokeLinecap="round" 
+    strokeDasharray="200 1000" 
+    strokeDashoffset="0" 
     cx="100" 
     cy="100" 
     r="70"
@@ -147,12 +140,12 @@ const SearchProduct = () => {
   </circle>
 
   <circle 
-    transform-origin="center" 
+    transformOrigin="center" 
     fill="none" 
     opacity=".2" 
     stroke="#000000" 
-    stroke-width="11" 
-    stroke-linecap="round" 
+    strokeWidth="11" 
+    strokeLinecap="round" 
     cx="100" 
     cy="100" 
     r="70"
@@ -164,18 +157,36 @@ const SearchProduct = () => {
 }
      <div className='dropcontainer absolute w-[46.5vw] my-2 rounded-md'>
 
-     {dropdown.map(item=>{
-        return <div key={item._id} className='continar flex justify-between bg-black text-white font-semibold p-1 my-1 rounded-md border border-black border-1'>  
-           <span className='productName'>{item.productName} ({item.quantity} available for ৳{item.price} )</span>
-          <div className='mx-5'>
-             
-          <button onClick={()=>{buttonAction("sub", item.productName, item.quantity)}} disabled={loadingaction} className='subtract inline-block px-3 py-1 bg-white text-black rounded-lg font-semubold shadow-md cursor-pointer disabled:bg-blue-100'> - </button>
-           <span className='quantity inline-block w-9 mx-3 text-center'>{item.quantity}</span>
-            <button onClick={()=>{buttonAction("plus", item.productName, item.quantity)}}  disabled={loadingaction} className='add inline-block px-3 py-1 bg-white text-black rounded-lg font-semubold shadow-md cursor-pointer disabled:bg-blue-100'>+</button>
-            </div>
-           
-          </div>
-       })}
+     {dropdown.map((item) => (
+  <div
+    key={item._id}
+    className="continar flex justify-between bg-black text-white font-semibold p-1 my-1 rounded-md border border-black"
+  >
+    <span className="productName">
+      {item.productName} ({item.quantity} available for ৳{item.price})
+    </span>
+    <div className="mx-5 flex items-center">
+      <button
+        onClick={() => buttonAction("minus", item.productName, item.quantity)}
+        disabled={loadingProduct === item.productName || item.quantity <= 0}
+        className="subtract inline-block px-3 py-1 bg-white text-black rounded-lg font-semibold shadow-md cursor-pointer disabled:bg-blue-100"
+      >
+        -
+      </button>
+      <span className="quantity inline-block w-9 mx-3 text-center">
+        {item.quantity}
+      </span>
+      <button
+        onClick={() => buttonAction("plus", item.productName, item.quantity)}
+        disabled={loadingProduct}
+        className="add inline-block px-3 py-1 bg-white text-black rounded-lg font-semibold shadow-md cursor-pointer disabled:bg-blue-100"
+      >
+        +
+      </button>
+    </div>
+  </div>
+))}
+
 
      </div>
 

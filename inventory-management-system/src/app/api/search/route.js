@@ -11,10 +11,6 @@ export async function GET(request){
         const database =client.db('stock');
         const inventory = database.collection('inventory');
 
-
-         // Parse the price query to a number if it's a valid numeric string
-    const priceQuery = parseFloat(query);
-    const isPriceQuery = !isNaN(priceQuery); // Check if priceQuery is a valid number
      
         const products = await inventory.aggregate([
           {
@@ -22,7 +18,6 @@ export async function GET(request){
               $or: [
                 { productName: { $regex: query, $options: "i" } }, // Match in name
                 { category: { $regex: query, $options: "i" } }, // Match in category
-                isPriceQuery ? { price: { $gte: priceQuery } } : {} // Match price greater than or equal if valid
               ].filter(condition => Object.keys(condition).length) // Remove empty objects
             }
           }

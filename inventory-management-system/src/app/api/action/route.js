@@ -1,31 +1,57 @@
-import {MongoClient} from 'mongodb';
+import { MongoClient } from 'mongodb';
 import { NextResponse } from 'next/server';
 
-export async function POST(request){
-    
-    let {action, productName, intialQuantity} = await request.json();
-    
-    const uri = "mongodb+srv://WeFive:Weneedspace@cluster0.3sa3h.mongodb.net/";
-    const client = new MongoClient(uri);
-    try {
-        const database =client.db('stock');
-        const inventory = database.collection('inventory');
-        const filter = { productName: productName };
-   
-        let newQuantity = action=="plus"? (parseInt(intialQuantity + 1 )): (parseInt(intialQuantity + 1 ));
-        const updateDoc = {
-          $set: {
-            quantity: newQuantity
-          },
-        };
-        // Update the first document that matches the filter
-        const result = await inventory.updateOne(filter, updateDoc, {} );
-        
-        // Print the number of matching and modified documents
-        
-        return NextResponse.json({ success: true, message: `${result.matchedCount} document(s) matched the filter, updated ${result.modifiedCount} document(s)`})
-      } finally {
-        // Close the connection after the operation completes
-        await client.close();
-      }
+const uri = "mongodb+srv://WeFive:Weneedspace@cluster0.3sa3h.mongodb.net/";
+const client = new MongoClient(uri);
+
+export async function POST(request) {
+ // console.log(request)
+  try {
+    const { action, productName, initialQuantity } = await request.json();
+
+    // Validate input data
+    if (!productName || !action || isNaN(initialQuantity)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid input data" },
+        { status: 400 }
+      );
+    }
+
+    // Connect to the database
+    await client.connect();  // Ensure the connection is established
+    const database = client.db('stock');
+    const inventory = database.collection('inventory');
+
+    // Calculate the new quantity
+    const quantityChange = action === "plus" ? 1 : -1;
+    const newQuantity = initialQuantity + quantityChange;
+
+    const filter = { productName };
+    const updateDoc = {
+      $set: { quantity: newQuantity },
+    };
+
+    // Update the product's quantity in the database
+    const result = await inventory.updateOne(filter, updateDoc);
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json(
+        { success: false, message: "Product not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Quantity updated successfully. Updated ${result.modifiedCount} document(s).`,
+    });
+  } catch (error) {
+    console.error("Error updating inventory:", error);
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  } finally {
+    await client.close();  // Ensure the client connection is closed
+  }
 }

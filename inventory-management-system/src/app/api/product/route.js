@@ -1,68 +1,59 @@
-import {MongoClient,ObjectId} from 'mongodb';
+import { connectdb } from '../../../lib/dbConnect'
+import { ObjectId } from 'mongodb';
 import { NextResponse } from 'next/server';
+import Product from '../../../models/Product'
 
-export async function GET(request){
-    
-    const uri = "mongodb+srv://WeFive:Weneedspace@cluster0.3sa3h.mongodb.net/";
-    const client = new MongoClient(uri);
-    try{
-        const database =client.db('stock');
-        const inventory = database.collection('inventory');
-        const query= { };
-        const products =await inventory.find(query).toArray();
-        return NextResponse.json({success:true, products})
-    }finally{
-        await client.close();
-    }
+
+export async function GET() {
+  await connectdb();
+  const products = await Product.getAll();
+  // console.log(products);
+  return new NextResponse(JSON.stringify({ products }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 }
 
 
-export async function POST(request){
-    
-    let body = await request.json();
-    console.log('Request body:', body);
-    const uri = "mongodb+srv://WeFive:Weneedspace@cluster0.3sa3h.mongodb.net/";
-    const client = new MongoClient(uri);
-    try{
-        const database =client.db('stock');
-        const inventory = database.collection('inventory');
-        const product =await inventory.insertOne(body)
-        return NextResponse.json({product, ok:true})
-    }finally{
-        await client.close();
-    }
-
+export async function POST(request) {
+  await connectdb();
+  const { productName, price, quantity, category } = await request.json();
+  const product = new Product(productName, price, quantity, category);
+  const savedProduct = await product.save();
+  return new NextResponse(JSON.stringify(savedProduct), {
+    status: 201,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 }
+
 
 export async function DELETE(request) {
-    const uri = 'mongodb+srv://WeFive:Weneedspace@cluster0.3sa3h.mongodb.net/';
-    const client = new MongoClient(uri);
-//  console.log(request)
-    try {
-      const database = client.db('stock');
-      const inventory = database.collection('inventory');
-  
-      // Extract the ID from the request body
-      const { id } = await request.json();
+  try {
+    await connectdb(); // Ensure database connection
+
+    const { id } = await request.json();
   
       if (!id) {
         return NextResponse.json({ message: 'ID is required', ok: false });
       }
   
-      const query = { _id: new ObjectId(id) };  // Convert the string ID to ObjectId
-      const result = await inventory.deleteOne(query);
-  
-      if (result.deletedCount === 1) {
-        console.log('Successfully deleted one document.');
-        return NextResponse.json({ message: 'Product deleted successfully', ok: true });
-      } else {
-        console.log('No matching document found. Deleted 0 documents.');
-        return NextResponse.json({ message: 'No matching product found', ok: false });
-      }
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      return NextResponse.json({ message: 'Error deleting product', ok: false });
-    } finally {
-      await client.close();
+
+    const query = { _id: new ObjectId(id) }; // Convert string ID to ObjectId
+    const result = await Product.deleteById(query); // Use query object for deletion
+
+    if (result.deletedCount === 1) {
+      //console.log('Successfully deleted one document.');
+      return NextResponse.json({ message: 'Product deleted successfully', ok: true });
+    } else {
+      //console.log('No matching document found.');
+      return NextResponse.json({ message: 'No matching product found', ok: false });
     }
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    return NextResponse.json({ message: 'Error deleting product', ok: false });
   }
+}

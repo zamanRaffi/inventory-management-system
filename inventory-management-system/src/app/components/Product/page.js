@@ -1,35 +1,43 @@
-'use client';
-
+'use client'
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useProducts } from '../../../ProductContext';
+
 
 const Product = () => {
-  const [products, setProducts] = useState([]);
-  const [error, setError] = useState();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { products = [] ,setProducts } = useProducts();
+  
   const [formData, setFormData] = useState({
     productName: '',
     category: '',
     quantity: '',
     price: '',
   });
-  const [loading, setLoading] = useState(true);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [alert, setAlert] = useState("");
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState( );
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await axios.get('/api/product'); // Correct endpoint
-        setProducts(response.data.products); // Directly access data from the response
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching products:', error);
-      }
-    };
-  
     fetchProducts();
   }, []);
+
+
+  const fetchProducts = async () => {
+    try {
+      const response = await axios.get('/api/product');
+      //console.log(response.data); 
+  
+      // Make sure you are accessing the 'products' key correctly
+      setProducts(response.data.products || []); 
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setProducts([]); // Fallback to an empty array
+    }
+  };
+  
   
 
   const handleOpenModal = () => {
@@ -43,39 +51,43 @@ const Product = () => {
   };
 
   const addProduct = async (e) => {
-    
-    
+    e.preventDefault();  // Move this up to prevent accidental reload
+  
     try {
-        // Optional: Validate formData here before sending
-        const response = await axios.post('/api/product', {
-            ...formData,
-        });
-
-        if (response.status === 201) {
-            console.log('Product added successfully');
-            setProducts([...products, { ...formData }]); // Update product list
-            setIsModalOpen(false); // Close the modal
-            setFormData({}); // Reset form data
-            setAlert("Your Product has been added!");
-        } else {
-            console.error('Error adding product:', response.data);
-            setAlert("Failed to add product. Please try again.");
-        }
+      const response = await axios.post('/api/product', {
+        productName: formData.productName, 
+        price: formData.price,
+        quantity: formData.quantity,
+        category: formData.category,
+      });
+  
+      if (response.status === 201) {
+        console.log('Product added successfully');
+        setProducts([...products, response.data]);  // Use response data directly
+        setIsModalOpen(false)
+        setFormData({}) // Reset form 
+        setAlert("Your Product has been added!");
+        setTimeout(() => setAlert(""), 3000);
+      } else {
+        console.error('Error adding product:', response.data);
+        setAlert("Failed to add product. Please try again.");
+        setTimeout(() => setAlert(""), 3000);
+      }
     } catch (error) {
-        console.error('Error:', error);
-        setAlert("An error occurred while adding the product.");
+      console.error('Error:', error);
+      setAlert("An error occurred while adding the product.");
+      setTimeout(() => setAlert(""), 3000);
     }
-
-    //fatch all the products agaun  to  sync back
-    const response = await axios.get('/api/product'); // Correct endpoint
-    setProducts(response.data.products); 
-    e.preventDefault();
-};
-
+  
+    // Sync the UI with the latest products
+    const getResponse = await axios.get('/api/product');
+    setProducts(getResponse.data.products);
+  };
+  
 const handleDeleteProduct = async (id) => {
-  console.log(id)
+  //console.log(id)
   try {
-    const response = await axios.delete(`/api/product`, {
+    const response = await axios.delete('/api/product', {
       data: { id }, // Send 'id' in the request body
       
     });
@@ -85,8 +97,12 @@ const handleDeleteProduct = async (id) => {
     // Fetch all products again to sync the UI
     const getResponse = await axios.get('/api/product');
     setProducts(getResponse.data.products);  // Update the product list
+    setAlert("Product deleted successfully!");
+    setTimeout(() => setAlert(""), 3000);
   } catch (err) {
     console.error('Error deleting product:', err);
+    setAlert("Failed to delete product. Please try again.");
+    setTimeout(() => setAlert(""), 3000);
   }
 };
 
@@ -94,8 +110,13 @@ const handleDeleteProduct = async (id) => {
 
   return (
     <div className="p-4">
-  
-       <div className='text-greeen-800 text-center'>{alert}</div>
+      {alert && (
+           <div className='flex items-center justify-center'>
+            
+           <div className='bg-black text-white text-lg text-center rounded-xl w-[25rem] p-3'>{alert}</div>
+         
+           </div>
+       )}
       <button
         className="bg-black hover:bg-white hover:text-black text-white font-bold text-xl px-4 py-2 border border-black rounded-xl focus:outline-none mt-8 mb-4"
         onClick={handleOpenModal}
@@ -104,7 +125,6 @@ const handleDeleteProduct = async (id) => {
       </button>
 
       <h2 className="text-3xl font-bold mt-12">Current Inventory</h2>
-
       {loading ? (
         <p>Loading...</p>
       ) : error ? (
@@ -112,10 +132,11 @@ const handleDeleteProduct = async (id) => {
       ) : products.length === 0 ? (
         <p>No products available.</p>
       ) : (
+    
         <div className="overflow-x-auto">
           <table className="min-w-full table-auto bg-blue-300 border border-black mt-2 ">
             <thead>
-              <tr className="bg-black divide-x divide-white"> 
+              <tr className="bg-black divide-x divide-white">
                 <th className="px-4 py-1 divide-x divide-white text-white">Product Name</th>
                 <th className="px-4 py-1 divide-x divide-white text-white">Category</th>
                 <th className="px-4 py-1 divide-x divide-white text-white">Quantity</th>
@@ -129,7 +150,7 @@ const handleDeleteProduct = async (id) => {
                   <td className="px-4 py-1 border border-black">{product.productName}</td>
                   <td className="px-4 py-1 border border-black">{product.category}</td>
                   <td className="px-4 py-1 border border-black">{product.quantity}</td>
-                  <td className="px-4 py-1 border border-black">{product.price} ৳</td>
+                  <td className="px-4 py-1 border border-black">৳ {product.price}</td>
                   <td className="px-4 py-1 border border-black">
                     <button
                       onClick={() => handleDeleteProduct(product._id)}
@@ -143,7 +164,7 @@ const handleDeleteProduct = async (id) => {
             </tbody>
           </table>
         </div>
-      )}
+       )}
 
 
 
@@ -226,4 +247,4 @@ const handleDeleteProduct = async (id) => {
   );
 };
 
-export default Product;
+export default Product; 
