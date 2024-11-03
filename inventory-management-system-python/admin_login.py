@@ -2,6 +2,8 @@
 import sqlite3
 from tkinter import *
 from tkinter import messagebox
+from ttkbootstrap import Style  # Import ttkbootstrap style
+import ttkbootstrap as ttk
 from utils import hash_password
 
 class InventoryDB:
@@ -31,8 +33,7 @@ class InventoryDB:
         return self.cursor.fetchone() is not None
 
     def reset_password(self, username):
-        """Reset the user's password to a temporary one."""
-        new_temp_password = "temp1234"  # Generate a temporary password (in a real app, make this random)
+        new_temp_password = "temp1234"  # Generate a temporary password
         hashed_password = hash_password(new_temp_password)
         self.cursor.execute("UPDATE users SET password = ? WHERE username = ?", (hashed_password, username))
         self.connection.commit()
@@ -47,29 +48,40 @@ class LoginApp:
         self.root = root
         self.root.title("Admin Login")
         self.root.geometry("400x400")
-        self.root.configure(bg="#2c3e50")
+
+        # Apply the ttkbootstrap style
+        self.style = Style(theme='darkly')  # You can choose other themes
 
         frame = Frame(self.root, bg="#2c3e50", padx=20, pady=20)
         frame.pack(expand=True)
 
-        Label(frame, text="Inventory Management System", font=("Arial", 20, "bold"), fg="orange", bg="#2c3e50").pack(pady=10)
+        Label(frame, text="Inventory Management System", font=("Arial", 32, "bold"), fg="orange", bg="#2c3e50").pack(pady=10)
         Label(frame, text="Username", font=("Arial", 12), fg="white", bg="#2c3e50").pack(anchor="w", pady=5)
-        self.username_entry = Entry(frame, font=("Arial", 12), width=30)
+        self.username_entry = Entry(frame, font=("Arial", 12), width=70)
         self.username_entry.pack(pady=5)
 
         Label(frame, text="Password", font=("Arial", 12), fg="white", bg="#2c3e50").pack(anchor="w", pady=5)
-        self.password_entry = Entry(frame, font=("Arial", 12), show="*", width=30)
+        self.password_entry = Entry(frame, font=("Arial", 12), show="*", width=70)
         self.password_entry.pack(pady=5)
 
-        Button(frame, text="Signin", command=self.login, font=("Arial", 12), bg="#4caf50", fg="white").pack(pady=10)
-        Button(frame, text="Signup", command=self.signup, font=("Arial", 12), bg="#2196f3", fg="white").pack(pady=5)
-        Button(frame, text="Lost Password", command=self.lost_password, font=("Arial", 12), bg="#ff5722", fg="white").pack(pady=5)
+        # Create a frame for buttons to align them side by side
+        button_frame = Frame(frame, bg="#2c3e50")
+        button_frame.pack(pady=10)
+
+        # Styling the buttons with ttkbootstrap and adding a border radius
+        signin_button = ttk.Button(button_frame,text="Signin", command=self.login, bootstyle="success", width=15)
+        signin_button.pack(side=LEFT, padx=(0, 10))  # Right padding for gap
+
+        lost_password_button = ttk.Button(button_frame, text="Lost Password", command=self.lost_password, bootstyle="danger", width=15)
+        lost_password_button.pack(side=RIGHT, padx=(10, 0))  # Left padding for gap
+
+        signup_button = ttk.Button(frame, text="Signup", command=self.signup, bootstyle="primary", width=30)
+        signup_button.pack(pady=(5, 0))  # Top padding for space between buttons
 
     def login(self):
         username = self.username_entry.get()
         password = hash_password(self.password_entry.get())
         if self.db.login(username, password):
-            messagebox.showinfo("Success", "Login successful!")
             self.open_inventory_window()
         else:
             messagebox.showwarning("Error", "Invalid username or password.")
@@ -80,16 +92,13 @@ class LoginApp:
         self.db.signup(username, password)
 
     def lost_password(self):
-        """Handles the 'Lost Password' functionality."""
         username = self.username_entry.get()
         if not username:
             messagebox.showwarning("Error", "Please enter your username.")
             return
 
-        # Check if the username exists
         self.db.cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
         if self.db.cursor.fetchone():
-            # Reset password and inform the user
             new_password = self.db.reset_password(username)
             messagebox.showinfo("Password Reset", f"Your temporary password is: {new_password}\nPlease change it after logging in.")
         else:
@@ -103,6 +112,6 @@ class LoginApp:
         inventory_root.mainloop()
 
 if __name__ == "__main__":
-    root = Tk()
+    root = ttk.Window()  
     app = LoginApp(root)
     root.mainloop()
